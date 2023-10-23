@@ -1,0 +1,73 @@
+﻿@inject IJSRuntime JSRuntime
+
+<div style="">
+    <IgbTree Selection="TreeSelection.Cascade" SelectionChanged="OnSelectionChanged">
+
+        @foreach (var item in _SampleData)
+        {
+            @* IgbTreeItem の Value パラメーターに、バインド元のレコードのユニークID値を格納できます。 *@
+            <IgbTreeItem Label="@item.Name" Value="@item.Id">
+                @if (item.Children != null)
+                {
+                    @foreach (var child in item.Children)
+                    {
+                        <IgbTreeItem Label="@child.Name" Value="@child.Id"></IgbTreeItem>
+                    }
+                }
+            </IgbTreeItem>
+        }
+    </IgbTree>
+</div>
+
+@code
+{
+    /// <summary>サンプル用のデータ型です。</summary>
+    private record CountryData(int Id, string Name, string JPName, IEnumerable<CountryData>? Children = null);
+
+    /// <summary>サンプル用のデータです。</summary>
+    private readonly IEnumerable<CountryData> _SampleData = new CountryData[]
+    {
+        new(1, "North America","北アメリカ", new CountryData[]
+    {
+            new(2, "United States","アメリカ"),
+            new(3, "Canada","カナダ"),
+            new(4, "Mexico", "メキシコ"),
+    }),
+        new(5, "South America","南アメリカ", new CountryData[]
+    {
+            new(6, "Brazil", "ブラジル"),
+            new(7, "Uruguay", "ウルグアイ"),
+    }),
+        new(8, "Europe", "ヨーロッパ", new CountryData[]
+    {
+            new(9, "United Kingdom", "イギリス"),
+            new(10, "Germany", "ドイツ"),
+            new(11, "Bulgaria" , "ブルガリア"),
+    }),
+    };
+
+    /// <summary>
+    /// ツリーアイテムの選択状態が変更されたときに呼び出され、選択されているツリーアイテムの Value パラメーター値をもとに、
+    /// バインド元のレコードを特定し、日本語名を取り出してブラウザの alert で表示します。
+    /// </summary>
+    private async Task OnSelectionChanged(IgbTreeSelectionOptionsEventArgs args)
+    {
+        // 選択されたツリーアイテムから Value パラメーター値を収集
+        var selectedItemValues = args
+            .Detail
+            .NewSelection
+            .Select(item => item.Value);
+
+        var selectedData = _SampleData
+            // 2階層構造のバインド元のレコードを1次元構造にフラットに展開し、
+            .SelectMany(data => new[] { data }.Concat(data.Children ?? Enumerable.Empty<CountryData>()))
+            // Id の値が、選択されたツリーアイテムの Value パラメータに含まれるレコードを抽出、
+            .Where(data => selectedItemValues.Contains(data.Id))
+            // 日本語名を取り出す
+            .Select(data => data.JPName);
+
+        // 結果をブラウザの alert で表示
+        await this.JSRuntime.InvokeVoidAsync("alert", "選択されたアイテムの日本語名: " + string.Join(", ", selectedData));
+    }
+
+}
